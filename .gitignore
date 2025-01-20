@@ -1,0 +1,73 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+ENV/
+env/
+
+# Environment variables file
+.env
+
+# Build and distribution files
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and debug files
+*.log
+*.sqlite3
+
+# Test coverage reports
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
+pytest_cache/
+
+# MyPy type checker reports
+.mypy_cache/
+.dmypy.json
+
+# Profiling data
+*.prof
+
+# IDE/Editor-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# PyCharm-specific files
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# macOS-specific files
+.DS_Store
+
+# Windows-specific files
+Thumbs.db
+desktop.ini
+
+# Packaging artifacts
+*.wheel
+*.manifest
+*.spec
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Local scripts
+scripts/

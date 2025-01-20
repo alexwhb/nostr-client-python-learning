@@ -1,0 +1,4 @@
+websockets==14.2
+certifi==2024.12.14
+python-dotenv==1.0.1
+nostr==0.0.2
