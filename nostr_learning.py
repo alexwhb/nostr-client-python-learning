@@ -10,52 +10,83 @@ from nostr.key import PrivateKey
 from nostr.message_type import ClientMessageType
 import os
 
-async def send_event(relay, event_content, private_key):
+async def send_event(relay: str, event_content: str, private_key: PrivateKey) -> None:
+    """
+    Sends a Kind 1 (text note) event to a specified Nostr relay.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+        event_content (str): The content of the event, such as a message or note.
+        private_key (PrivateKey): The private key used to sign the event. The corresponding
+                                  public key will be included in the event.
+
+    Notes:
+        - Kind 1 events are used for broadcasting text notes or general messages.
+        - The private key must be an instance of `PrivateKey` from the `nostr` library.
+    """
     event = Event(private_key.public_key.hex(), event_content)
     private_key.sign_event(event)
 
-    # Use certifi's certificate bundle to handle SSL verification
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    # Connect to the relay and send the event
     async with websockets.connect(relay, ssl=ssl_context) as websocket:
         await websocket.send(event.to_message())
         print(f"Sent event: {event}")
 
-        # Await for acknowledgment or response (optional)
         response = await websocket.recv()
         print(f"Received response: {response}")
 
 
-async def request_event_deletion(relay, private_key, event_id):
+async def request_event_deletion(relay: str, private_key: PrivateKey, event_id: str) -> None:
+    """
+    Sends a Kind 5 (deletion) event to request the deletion of a specific event.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+        private_key (PrivateKey): The private key used to sign the deletion request.
+        event_id (str): The hex ID of the event to be deleted.
+
+    Notes:
+        - Kind 5 events are used to notify relays and clients to delete or ignore the specified event.
+        - Only the original author (using their private key) can issue a valid deletion request.
+        - Relays and clients are not guaranteed to honor deletion requests.
+    """
     event = Event(private_key.public_key.hex(), "", kind=5, tags=[["e", event_id]])
     private_key.sign_event(event)
 
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    # Connect to the relay and send the event
     async with websockets.connect(relay, ssl=ssl_context) as websocket:
         await websocket.send(event.to_message())
         print(f"Sent event: {event}")
 
-        # Await for acknowledgment or response (optional)
         response = await websocket.recv()
         print(f"Received response: {response}")
 
 
-async def query_all_events(relay):
+async def query_all_events(relay: str) -> None:
+    """
+    Subscribes to all events from a specified Nostr relay.
+
+    WARNING!!! THIS SHOULD ONLY BE USED ON RELAYS THAT YOU OWN !!! THIS WILL FETCH EVERYTHING ON A RELAY
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+
+    Notes:
+        - This function sends a subscription request for all events with no filters applied.
+        - It prints received events to the console and terminates upon receiving the first matching event.
+    """
     subscription_id = "test-subscription-id"
     request = ["REQ", "all_events", {}]
 
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    # Connect to the relay and send the subscription request
     async with websockets.connect(relay, ssl=ssl_context) as websocket:
         await websocket.send(json.dumps(request))
         print(f"Sent subscription request: {request}")
 
         while True:
-            # Wait for events matching the query
             response = await websocket.recv()
             event = json.loads(response)
             print(f"Received event: {event}")
@@ -63,7 +94,20 @@ async def query_all_events(relay):
                 print(f"Received event: {event[2]}")
                 break
 
-async def query_kind_0(relay, pub_key):
+
+async def query_kind_0(relay: str, pub_key: str) -> None:
+    """
+    Queries Kind 0 (set metadata) events for a specific public key.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+        pub_key (str): The hex-encoded public key (not npub format) to filter events by.
+
+    Notes:
+        - Kind 0 events are used to update user metadata, such as profile information.
+        - The public key must be in its hex-encoded form.
+        - Clients typically use these events to display user profiles or other metadata.
+    """
     filters = Filters([Filter(authors=[pub_key], kinds=[EventKind.SET_METADATA])])
     subscription_id = "test-subscription-id"
 
@@ -72,19 +116,30 @@ async def query_kind_0(relay, pub_key):
 
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    # Connect to the relay and send the subscription request
     async with websockets.connect(relay, ssl=ssl_context) as websocket:
         await websocket.send(json.dumps(request))
         print(f"Sent subscription request: {request}")
         while True:
-            # Wait for events matching the query
             response = await websocket.recv()
             event = json.loads(response)
             if event[0] == "EVENT" and event[1] == subscription_id:
                 print(f"Received event: {event[2]}")
                 break
 
-async def query_kind_1(relay, pub_key):
+
+async def query_kind_1(relay: str, pub_key: str) -> None:
+    """
+    Queries Kind 1 (text note) events for a specific public key.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+        pub_key (str): The hex-encoded public key (not npub format) to filter events by.
+
+    Notes:
+        - Kind 1 events are used for general messages or text notes.
+        - The public key must be in its hex-encoded form.
+        - Clients typically use these events to display user messages or notes.
+    """
     filters = Filters([Filter(authors=[pub_key], kinds=[EventKind.TEXT_NOTE])])
     subscription_id = "test-subscription-id"
     request = [ClientMessageType.REQUEST, subscription_id]
@@ -92,11 +147,9 @@ async def query_kind_1(relay, pub_key):
 
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    # Connect to the relay and send the subscription request
     async with websockets.connect(relay, ssl=ssl_context) as websocket:
         await websocket.send(json.dumps(request))
         while True:
-            # Wait for events matching the query
             response = await websocket.recv()
             event = json.loads(response)
             if event[0] == "EVENT" and event[1] == subscription_id:
