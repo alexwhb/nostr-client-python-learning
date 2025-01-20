@@ -222,6 +222,44 @@ async def query_kind_1(relay: str, pub_key: str) -> None:
                 print(f"Received event: {event[2]}")
                 break
 
+async def query_all_events_by_pubkey(relay: str, pub_key: str) -> None:
+    """
+    Queries all events by a specific public key, regardless of kind.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay (e.g., "wss://relay.example.com").
+        pub_key (str): The hex-encoded public key (not npub format) to filter events by.
+
+    Notes:
+        - This function sends a subscription request for all events authored by the specified public key.
+        - The public key must be in its hex-encoded form.
+        - It prints received events to the console.
+    """
+    # Create a filter for all kinds of events by the specified public key
+    filters = Filters([Filter(authors=[pub_key])])
+    subscription_id = "all-events-by-pubkey"
+
+    # Construct the subscription request
+    request = [ClientMessageType.REQUEST, subscription_id]
+    request.extend(filters.to_json_array())
+
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    # Connect to the relay and send the subscription request
+    async with websockets.connect(relay, ssl=ssl_context) as websocket:
+        await websocket.send(json.dumps(request))
+        print(f"Sent subscription request: {request}")
+
+        while True:
+            # Wait for events matching the query
+            response = await websocket.recv()
+            event = json.loads(response)
+            if event[0] == "EVENT" and event[1] == subscription_id:
+                print(f"Received event: {event[2]}")
+            elif event[0] == "EOSE" and event[1] == subscription_id:
+                print("End of stream reached.")
+                break
+
 
 if __name__ == "__main__":
     load_dotenv()
