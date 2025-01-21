@@ -38,6 +38,55 @@ async def send_event(relay: str, event_content: str, private_key: PrivateKey) ->
         response = await websocket.recv()
         print(f"Received response: {response}")
 
+async def set_account_info_type_0(relay: str, private_key: PrivateKey, content: dict) -> None:
+    event = Event(private_key.public_key.hex(), json.dumps(content), kind=EventKind.SET_METADATA)
+    private_key.sign_event(event)
+
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    async with websockets.connect(relay, ssl=ssl_context) as websocket:
+        await websocket.send(event.to_message())
+        print(f"Sent event: {event}")
+
+        response = await websocket.recv()
+        print(f"Received response: {response}")
+
+
+async def set_relay_preferences(relay: str, private_key: PrivateKey, preferences: list) -> None:
+    """
+    Sends a Kind 10002 event to set relay preferences.
+
+    Parameters:
+        relay (str): The WebSocket URL of the Nostr relay to send the event to (e.g., "wss://relay.example.com").
+        private_key (PrivateKey): The private key used to sign the relay preference event.
+        preferences (list): A list of relay preferences in the format:
+                            [["r", "relay-url", "permissions"], ...]
+
+    Example:
+        preferences = [
+            ["r", "wss://relay1.example.com", "read"],
+            ["r", "wss://relay2.example.com", "write"],
+            ["r", "wss://relay3.example.com", "read,write"]
+        ]
+    """
+    event = Event(
+        private_key.public_key.hex(),
+        content="",
+        kind=10002,
+        tags=preferences
+    )
+    private_key.sign_event(event)
+
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    async with websockets.connect(relay, ssl=ssl_context) as websocket:
+        await websocket.send(event.to_message())
+        print(f"Sent relay preferences: {event}")
+
+        # Await for acknowledgment or response (optional)
+        response = await websocket.recv()
+        print(f"Received response: {response}")
+
 async def send_reaction(relay: str, private_key: PrivateKey, event_id: str, reaction: str) -> None:
     """
     Sends a Kind 7 (reaction) event to a specified Nostr relay.
@@ -116,6 +165,9 @@ async def request_event_deletion(relay: str, private_key: PrivateKey, event_id: 
         - Kind 5 events are used to notify relays and clients to delete or ignore the specified event.
         - Only the original author (using their private key) can issue a valid deletion request.
         - Relays and clients are not guaranteed to honor deletion requests.
+
+        If deletion isn’t feasible (e.g., the relay doesn’t honor Kind 5 events), you can overwrite your reaction by:
+        ending another Kind 7 event with neutral or opposite content (e.g., reaction="" or reaction="👎").
     """
     event = Event(private_key.public_key.hex(), "", kind=5, tags=[["e", event_id]])
     private_key.sign_event(event)
@@ -266,18 +318,24 @@ if __name__ == "__main__":
     private_key = PrivateKey.from_nsec(os.getenv('NOSTR_PRIVATE_KEY'))
     relay_url = os.getenv('NOSTR_RELAY_URL')
 
-    asyncio.run(query_all_events_by_pubkey(relay_url, private_key.public_key.hex()))
+    # meta = {'name': 'test', 'about': 'someting or other', 'website': 'example.com'}
+
+    # asyncio.run(set_account_info_type_0(relay_url, private_key, meta))
+
+
+
+    # asyncio.run(query_all_events_by_pubkey(relay_url, private_key.public_key.hex()))
     # asyncio.run(send_reaction(relay_url, private_key, "048fc258735640e17e3b0fa1889867d67a08219c469eafd500f7b79d1841afb7", "👍"))
 
     # asyncio.run(undo_reaction(relay_url, private_key, "be45401a57e06238b64d453ba43f16c470d7d935bddc8185fd6b32da47b7c677"))
     # print(private_key.public_key.hex())
 
-    # asyncio.run(send_event(relay_url, "This is an awesome post I just made!", private_key))
+    asyncio.run(send_event(relay_url, "bla bla bla", private_key))
 
     # asyncio.run(query_all_events(relay_url))
     # asyncio.run(query_event(relay_url, "06c66b81c82d96a7b73b396fd7364884630f147ba853fe3a208a61a608d9ac59"))
 
-    # asyncio.run(query_kind_0(relay_url,"06c66b81c82d96a7b73b396fd7364884630f147ba853fe3a208a61a608d9ac59"))
+    # asyncio.run(query_kind_0(relay_url,"32c391f28e4caff0031c1983e7ee48bdffd29d585b947b980c5de79593d83ce7"))
     # asyncio.run(query_kind_1(relay_url,"32c391f28e4caff0031c1983e7ee48bdffd29d585b947b980c5de79593d83ce7" ))
 
     # asyncio.run(request_event_deletion(relay_url, private_key, "488b724d49af9d48f66f1a000e1535a7d23748b0a1de9be19bb13bbc86ae8c20"))
